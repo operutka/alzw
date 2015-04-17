@@ -12,10 +12,7 @@ source files can be compiled using GNU make. All executables will be placed
 in the `bin` subdirectory. The following libraries are required for 
 compilation:
 
- - libbam (part of samtools version 0.1.19, other versions might work as well)
+ - libz (zlib >= 1.2.3)
  - libm
  - libpthread
-
-Samtools header files are expected in `/usr/include/samtools`. The path can 
-be changed using `SAM_INCLUDE_DIR` environment variable.
 

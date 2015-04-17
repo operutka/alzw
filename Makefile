@@ -1,14 +1,14 @@
-ifndef SAM_INCLUDE_DIR
-	SAM_INCLUDE_DIR=/usr/include/samtools
-endif
+SAMTOOLS=samtools-0.1.19
 
 CPP=g++
 CFLAGS= -Wall -Wno-long-long -pedantic -O3 -g -std=c++11
-CLIBS=  -lm \
+CLIBS=  -L$(SAMTOOLS) \
+        -lm \
         -lbam \
-        -lpthread
-INCLUDE=-I./include \
-        -I$(SAM_INCLUDE_DIR)
+        -lpthread \
+        -lz
+INCLUDE=-Iinclude \
+        -I$(SAMTOOLS)
 
 BIN=bin
 OBJ=obj
@@ -60,7 +60,7 @@ all: link
 $(OBJ)/%.o: $(SRC)/%.cpp
 	${CPP} ${CFLAGS} -o $@ -c $< ${INCLUDE}
 
-link: ${ALZW_OBJS} ${ALZWD_OBJS} ${ALZWQ_OBJS} ${S2FASTA_OBJS} ${S2SEQ_OBJS}
+link: ${ALZW_OBJS} ${ALZWD_OBJS} ${ALZWQ_OBJS} ${S2FASTA_OBJS} ${S2SEQ_OBJS} samtools
 	${CPP} ${CFLAGS} ${ALZW_OBJS} -o ${ALZW_OUT_FILE} ${CLIBS}
 	${CPP} ${CFLAGS} ${ALZWQ_OBJS} -o ${ALZWQ_OUT_FILE} ${CLIBS}
 	${CPP} ${CFLAGS} ${S2FASTA_OBJS} -o ${S2FASTA_OUT_FILE} ${CLIBS}
@@ -74,10 +74,14 @@ ${S2FASTA_OBJS}: ${HPPS}
 
 ${S2SEQ_OBJS}: ${HPPS}
 
+samtools:
+	${MAKE} -C ${SAMTOOLS} lib
+
 doc: ${HPPS} ${SRCS}
 	doxygen doxygen.conf
 
 clean:
 	-rm -f $(OBJ)/*.o $(ALZW_OUT_FILE) $(ALZWQ_OUT_FILE) $(S2FASTA_OUT_FILE) $(S2SEQ_OUT_FILE)
 	-rm -f $(TEST_OBJ)/*.o $(TEST_OUT_FILE)
+	${MAKE} -C ${SAMTOOLS} clean
 
