@@ -1,10 +1,14 @@
+ifndef SAM_INCLUDE_DIR
+	SAM_INCLUDE_DIR=/usr/include/samtools
+endif
+
 CPP=g++
 CFLAGS= -Wall -Wno-long-long -pedantic -O3 -g -std=c++11
 CLIBS=  -lm \
         -lbam \
         -lpthread
 INCLUDE=-I./include \
-        -I/usr/include/samtools
+        -I$(SAM_INCLUDE_DIR)
 
 BIN=bin
 OBJ=obj
