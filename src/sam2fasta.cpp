@@ -27,8 +27,49 @@ THE SOFTWARE.
 
 #include "utils.hpp"
 #include "sam-alignment.hpp"
+#include "exception.hpp"
 
 using namespace alzw;
+
+/**
+ * Write a single FASTA formatted sequence into a given output stream.
+ *
+ * @param fout     output
+ * @param seq_name sequence name
+ * @param seq      sequence
+ */
+static void write_sequence(std::ofstream& fout, 
+    const char* seq_name, const std::string& seq) {
+    char buffer[4096];
+    size_t offset = 0;
+    size_t i;
+    
+    fout << ">" << seq_name << std::endl;
+    
+    for (i = 0; i < seq.length(); i++) {
+        if ((offset + 4) >= sizeof(buffer)) {
+            buffer[offset] = 0;
+            fout << buffer;
+            if (fout.fail())
+                throw io_exception("error while writing into a file");
+            offset = 0;
+        }
+        
+        buffer[offset++] = seq[i];
+        if ((i % 60) == 59)
+            buffer[offset++] = '\n';
+    }
+    
+    if ((i % 60) != 0)
+        buffer[offset++] = '\n';
+    
+    if (offset > 0) {
+        buffer[offset] = 0;
+        fout << buffer;
+        if (fout.fail())
+            throw io_exception("error while writing into a file");
+    }
+}
 
 /**
  * Save a given pairwise alignment in FASTA format.
@@ -38,28 +79,11 @@ using namespace alzw;
  */
 static void save_alignment(const char* file, const alignment& a) {
     std::ofstream fout(file);
-    // TODO: check for error
+    if (!fout)
+        throw io_exception("unable to open output file: %s", file);
     
-    const std::string& rseq = a[0];
-    const std::string& aseq = a[1];
-    size_t i;
-    
-    fout << ">reference sequence" << std::endl;
-    for (i = 0; i < rseq.length(); i++) {
-        fout << rseq[i];
-        if ((i % 60) == 59)
-            fout << std::endl;
-    }
-    
-    if ((i % 60) != 0)
-        fout << std::endl;
-    
-    fout << ">aligned sequence" << std::endl;
-    for (i = 0; i < aseq.length(); i++) {
-        fout << aseq[i];
-        if ((i % 60) == 59)
-            fout << std::endl;
-    }
+    write_sequence(fout, "reference sequence", a[0]);
+    write_sequence(fout, "aligned sequence",   a[1]);
     
     fout.flush();
     fout.close();
@@ -121,7 +145,12 @@ int main(int argc, const char **argv) {
         return 1;
     }
     
-    convert(argv[0], argv + 1, argc - 1);
+    try {
+        convert(argv[0], argv + 1, argc - 1);
+    } catch (std::exception& ex) {
+        fprintf(stderr, "ERROR: %s\n", ex.what());
+        return 2;
+    }
     
     return 0;
 }

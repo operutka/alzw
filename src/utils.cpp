@@ -22,22 +22,19 @@ THE SOFTWARE.
 
 #include <sstream>
 #include <cstring>
-#include <stdexcept>
 #include <ctime>
 #include <unistd.h>
 
 #include "utils.hpp"
+#include "exception.hpp"
 
 using namespace alzw;
 using namespace utils;
 
 std::string alzw::utils::load_fasta(const char* file) {
     FILE* fin = fopen(file, "rt");
-    if (!fin) { // TODO: use IO exception here
-        std::stringstream msg;
-        msg << "unable to open FASTA file: " << file;
-        throw std::runtime_error(msg.str());
-    }
+    if (!fin)
+        throw io_exception("unable to open FASTA file: %s", file);
     
     std::string seq = load_fasta(fin);
     
@@ -51,11 +48,11 @@ std::string alzw::utils::load_fasta(FILE* file) {
     char line[4096];
     
     if (!fgets(line, sizeof(line), file))
-        throw std::runtime_error("EOF reached"); // TODO: use IO exception here
+        throw parse_exception("malformed FASTA format, unexpected EOF");
     if (line[0] != '>')
-        throw std::runtime_error("missing comment line"); // TODO: use IO exception here
+        throw parse_exception("malformed FASTA format, missing comment line");
     if (!strchr(line, '\n'))
-        throw std::runtime_error("comment line is too long"); // TODO: use IO exception here
+        throw parse_exception("comment line is too long, maximum supported length is 4095 characters");
     
     while (fgets(line, sizeof(line), file)) {
         for (size_t i = 0; line[i] != 0; i++) {
@@ -69,10 +66,13 @@ std::string alzw::utils::load_fasta(FILE* file) {
                 case 'G':
                 case 'T':
                 case 'N': seqs << c; break;
-                default:  throw std::runtime_error("invalid character"); // TODO: use IO exception here
+                default:  throw parse_exception("unexpected DNA sequence character: %c", c);
             }
         }
     }
+    
+    if (ferror(file))
+        throw io_exception("error while reading from a file");
     
     return seqs.str();
 }

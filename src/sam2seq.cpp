@@ -27,6 +27,7 @@ THE SOFTWARE.
 
 #include "utils.hpp"
 #include "sam-alignment.hpp"
+#include "exception.hpp"
 
 using namespace alzw;
 
@@ -37,12 +38,30 @@ using namespace alzw;
  * @param seq  sequence
  */
 static void save_seq(const char* file, const std::string& seq) {
+    char buffer[4096];
+    size_t offset = 0;
+    
     std::ofstream fout(file);
-    // TODO: check for errors
+    if (!fout)
+        throw io_exception("unable to open output file: %s", file);
     
     for (size_t i = 0; i < seq.length(); i++) {
         if (seq[i] != '-')
-            fout << (char)tolower(seq[i]);
+            buffer[offset++] = tolower(seq[i]);
+        if ((offset + 1) == sizeof(buffer)) {
+            buffer[offset] = 0;
+            fout << buffer;
+            if (fout.fail())
+                throw io_exception("error while writing into a file");
+            offset = 0;
+        }
+    }
+    
+    if (offset > 0) {
+        buffer[offset] = 0;
+        fout << buffer;
+        if (fout.fail())
+            throw io_exception("error while writing into a file");
     }
     
     fout.flush();
@@ -105,7 +124,12 @@ int main(int argc, const char **argv) {
         return 1;
     }
     
-    convert(argv[0], argv + 1, argc - 1);
+    try {
+        convert(argv[0], argv + 1, argc - 1);
+    } catch (std::exception& ex) {
+        fprintf(stderr, "ERROR: %s\n", ex.what());
+        return 2;
+    }
     
     return 0;
 }

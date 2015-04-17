@@ -22,10 +22,9 @@ THE SOFTWARE.
 
 #include "bit-io.hpp"
 #include "utils.hpp"
+#include "exception.hpp"
 
 #include <cstring>
-#include <exception>
-#include <stdexcept>
 
 using namespace alzw;
 
@@ -87,6 +86,8 @@ uint64_t breader::read_gamma() {
     
     if (bits == 0)
         return 1;
+    else if (bits > 63)
+        throw runtime_exception("gamma code overflow");
     
     read(val, bits);
     
@@ -99,13 +100,15 @@ uint64_t breader::read_delta() {
     
     if (bits == 0)
         return 1;
+    else if (bits > 63)
+        throw runtime_exception("delta code overflow");
     
     read(val, bits);
     
     return (1 << bits) | val;
 }
 
-size_t breader::read_str(char* buffer, size_t size) {
+ssize_t breader::read_str(char* buffer, size_t size) {
     size_t offset = 0;
     uint64_t val = 0;
     
@@ -116,6 +119,9 @@ size_t breader::read_str(char* buffer, size_t size) {
     }
     
     buffer[offset] = 0;
+    
+    if (val != 0)
+        return -1;
     
     return offset;
 }
@@ -132,6 +138,9 @@ stream_bwriter::~stream_bwriter() {
 void stream_bwriter::write(uint64_t bits, int width) {
     if ((bit_offset + width) > (sizeof(buffer) << 3)) {
         fwrite(buffer, sizeof(uint8_t), bit_offset >> 3, stream);
+        if (ferror(stream))
+            throw io_exception("error while writing into a file");
+        
         buffer[0] = buffer[bit_offset >> 3];
         bit_offset &= 0x7;
     }
@@ -158,8 +167,8 @@ void stream_bwriter::flush() {
 
 file_bwriter::file_bwriter(const char* file)
     : stream_bwriter(fopen(file, "wb")) {
-    if (!stream) // TODO: use IO exception
-        throw std::runtime_error("unable to open output file");
+    if (!stream)
+        throw io_exception("unable to open output file: %s", file);
 }
 
 file_bwriter::~file_bwriter() {
@@ -183,6 +192,9 @@ int stream_breader::read(uint64_t& bits, int width) {
         bit_offset &= 0x7;
         
         a = fread(buffer + a, sizeof(uint8_t), sizeof(buffer) - a, stream);
+        if (ferror(stream))
+            throw io_exception("error while reading from a file");
+        
         available += a << 3;
     }
     
@@ -211,8 +223,8 @@ int stream_breader::read(uint64_t& bits, int width) {
 
 file_breader::file_breader(const char* file)
     : stream_breader(fopen(file, "rb")) {
-    if (!stream) // TODO: use IO exception
-        throw std::runtime_error("unable to open input file");
+    if (!stream)
+        throw io_exception("unable to open input file: %s", file);
 }
 
 file_breader::~file_breader() {

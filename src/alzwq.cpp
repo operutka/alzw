@@ -25,6 +25,7 @@ THE SOFTWARE.
 
 #include "utils.hpp"
 #include "search-engine.hpp"
+#include "exception.hpp"
 
 using namespace alzw;
 
@@ -142,12 +143,17 @@ int main(int argc, const char** argv) {
         return 1;
     }
     
-    fprintf(stderr, "loading index...\n");
-    search_engine se(argv[0], argv[1]);
-    
-    fprintf(stderr, "enter query:\n");
-    while (process_query(a, se))
+    try {
+        fprintf(stderr, "loading index...\n");
+        search_engine se(argv[0], argv[1]);
+        
         fprintf(stderr, "enter query:\n");
+        while (process_query(a, se))
+            fprintf(stderr, "enter query:\n");
+    } catch (std::exception& ex) {
+        fprintf(stderr, "ERROR: %s\n", ex.what());
+        return 2;
+    }
     
     return 0;
 }

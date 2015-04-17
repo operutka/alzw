@@ -21,8 +21,7 @@ THE SOFTWARE.
 */
 
 #include <cstring>
-#include <stdexcept>
-#include <exception>
+#include <sstream>
 #include <deque>
 #include <algorithm>
 
@@ -30,6 +29,7 @@ THE SOFTWARE.
 #include "encoder.hpp"
 #include "decoder.hpp"
 #include "utils.hpp"
+#include "exception.hpp"
 
 using namespace alzw;
 
@@ -142,9 +142,11 @@ void node::release_children(node_allocator& allocator) {
 }
 
 node * node::child(int base, uint32_t offset) {
-    if (offset > length())
-        throw std::overflow_error("offset out of range");
-    else if (offset == length())
+    // use this for debugging:
+    //if (offset > length())
+    //    throw runtime_exception("offset out of range");
+    //else 
+    if (offset == length())
         return get(base);
     else if (get_base(offset) == base)
         return this;
@@ -153,9 +155,11 @@ node * node::child(int base, uint32_t offset) {
 }
 
 const node * node::child(int base, uint32_t offset) const {
-    if (offset > length())
-        throw std::overflow_error("offset out of range");
-    else if (offset == length())
+    // use this for debugging:
+    //if (offset > length())
+    //    throw runtime_exception("offset out of range");
+    //else 
+    if (offset == length())
         return get(base);
     else if (get_base(offset) == base)
         return this;
@@ -164,9 +168,11 @@ const node * node::child(int base, uint32_t offset) const {
 }
 
 node * node::first_child(uint32_t offset) {
-    if (offset > length())
-        throw std::overflow_error("offset out of range");
-    else if (offset < length())
+    // use this for debugging:
+    //if (offset > length())
+    //    throw runtime_exception("offset out of range");
+    //else 
+    if (offset < length())
         return this;
     else if (deg == 0)
         return NULL;
@@ -186,8 +192,9 @@ size_t node::size() const {
 
 #ifdef NODE_COLLAPSING
 void node::append(int base) {
-    if (deg > 0)
-        throw std::runtime_error("not a leaf node");
+    // use this for debugging:
+    //if (deg > 0)
+    //    throw runtime_exception("not a leaf node");
     
     size_t size = (++len + 1) >> 1;
     uint8_t* nseq = new uint8_t[size];
@@ -205,8 +212,9 @@ void node::append(int base) {
 }
 
 void node::append(uint8_t* phrase, uint32_t len) {
-    if (deg > 0)
-        throw std::runtime_error("not a leaf node");
+    // use this for debugging:
+    //if (deg > 0)
+    //    throw runtime_exception("not a leaf node");
     
     size_t size = (this->len + len + 1) >> 1;
     uint8_t* nseq = new uint8_t[size];
@@ -226,9 +234,11 @@ void node::append(uint8_t* phrase, uint32_t len) {
 }
 
 void node::shrink(uint32_t len) {
-    if (len > this->len)
-        throw std::runtime_error("shrink size is greater than the current size");
-    else if (len == this->len)
+    // use this for debugging:
+    //if (len > this->len)
+    //    throw runtime_exception("shrink size is greater than the current size");
+    //else 
+    if (len == this->len)
         return;
     
     size_t size = (len + 1) >> 1;
@@ -250,9 +260,11 @@ void node::shrink(uint32_t len) {
 #endif
 
 node * node::create(int base, node_allocator& allocator) {
-    node* n = get(base);
-    if (n)
-        throw std::runtime_error("there is already a child node for the given base");
+    // use this for debugging:
+    //node* n = get(base);
+    //if (n)
+    //    throw runtime_exception("there is already a child node for the given base");
+    node* n;
     
     if (deg == 0)
         children = n = allocator.alloc(base, this);
@@ -353,8 +365,9 @@ void node::set_children(node** c, uint8_t count, node_allocator& allocator) {
 }
 
 void node::set(int base, node* child, node_allocator& allocator) {
-    if (child && base != child->symbol())
-        throw std::runtime_error("given base does not match to the symbol of the given node");
+    // use this for debugging:
+    //if (child && base != child->symbol())
+    //    throw runtime_exception("given base does not match to the symbol of the given node");
 
     node* tmp[256];
     uint32_t d = deg;
@@ -512,7 +525,7 @@ const node * dictionary::get(uint64_t id) const {
     if (node_index)
         return node_index->get(id);
     
-    throw std::runtime_error("dictionary is not indexed");
+    throw runtime_exception("dictionary is not indexed");
 }
 
 bool dictionary::follow(char c) {
@@ -577,8 +590,6 @@ size_t dictionary::real_nodes() const {
 void dictionary::print() const {
     print(root, "");
 }
-
-#include <sstream>
 
 void dictionary::print(const node* n, const std::string& prefix) const {
     if (n->collapsed())
@@ -732,7 +743,7 @@ void node_index::insert(rb_node* tree, rb_node* n) {
     while (!n->parent) {
         tid = tree->n->id();
         if (nid == tid)
-            throw std::runtime_error("duplicate id");
+            throw runtime_exception("duplicate id");
         else if (nid < tid && tree->left)
             tree = tree->left;
         else if (nid < tid) {
@@ -1042,7 +1053,7 @@ void node_index::validate() {
     if (!root)
         return;
     if (!root->black)
-        throw std::runtime_error("root is red");
+        throw runtime_exception("root is red");
     
     validate(root, -1, 0);
 }
@@ -1052,13 +1063,13 @@ int node_index::validate(rb_node* n, int bdepth, int cdepth) {
         if (bdepth == -1 || bdepth == cdepth)
             return cdepth;
         else
-            throw std::runtime_error("black depth violated");
+            throw runtime_exception("black depth violated");
     }
     
     if (is_black(n))
         cdepth++;
     else if (!is_black(n->left) || !is_black(n->right))
-        throw std::runtime_error("red node has a red child");
+        throw runtime_exception("red node has a red child");
     
     bdepth = validate(n->left, bdepth, cdepth);
     return validate(n->right, bdepth, cdepth);
@@ -1092,7 +1103,7 @@ node * node_allocator::alloc(uint8_t* phrase, uint32_t len, node* parent) {
 #ifdef NODE_COLLAPSING
         n = new node(nodes++, phrase, len, parent);
 #else
-        throw std::runtime_error("node collapsing is disabled");
+        throw runtime_exception("node collapsing is disabled");
 #endif
     
     insert(n);
@@ -1137,7 +1148,7 @@ node * node_allocator::split(node* n, uint32_t at) {
     
     return n;
 #else
-    throw std::runtime_error("node collapsing is disabled");
+    throw runtime_exception("node collapsing is disabled");
 #endif
 }
 
@@ -1148,7 +1159,7 @@ void node_allocator::append(node* n, uint8_t sym) {
     mem += n->size();
     nodes++;
 #else
-    throw std::runtime_error("node collapsing is disabled");
+    throw runtime_exception("node collapsing is disabled");
 #endif
 }
 
@@ -1159,7 +1170,7 @@ void node_allocator::append(node* n, uint8_t* phrase, uint32_t len) {
     mem += n->size();
     nodes += len;
 #else
-    throw std::runtime_error("node collapsing is disabled");
+    throw runtime_exception("node collapsing is disabled");
 #endif
 }
 

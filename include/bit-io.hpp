@@ -129,9 +129,10 @@ namespace alzw {
          *
          * @param buffer output buffer
          * @param size   buffer size
-         * @returns number of read bytes
+         * @returns number of read bytes or -1 if the buffer is full and the 
+         * '\0' character was not read yet
          */
-        virtual size_t read_str(char* buffer, size_t size);
+        virtual ssize_t read_str(char* buffer, size_t size);
     };
     
     /**

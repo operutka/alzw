@@ -22,9 +22,9 @@ THE SOFTWARE.
 
 #include <sstream>
 #include <cstring>
-#include <stdexcept>
 
 #include "fasta-alignment.hpp"
+#include "exception.hpp"
 
 using namespace alzw;
 
@@ -36,7 +36,7 @@ fasta_alignment fasta_alignment::load(FILE* file) {
     while (fgets(line, sizeof(line), file)) {
         if (line[0] == '>') {
             if (!strchr(line, '\n'))
-                throw std::runtime_error("comment line is too long");
+                throw parse_exception("comment line is too long, maximum supported length is 4095 characters");
             std::string seq = seq_stream.str();
             if (seq.length() > 0)
                 result.seqs.push_back(seq);
@@ -54,26 +54,29 @@ fasta_alignment fasta_alignment::load(FILE* file) {
                     case 'T':
                     case 'N':
                     case '-': seq_stream << c; break;
-                    default:  throw std::runtime_error("invalid character");
+                    default:  throw parse_exception("unexpected DNA alignment character: %c", c);
                 }
             }
         }
     }
     
+    if (ferror(file))
+        throw io_exception("error while reading from a file");
+    
     std::string seq = seq_stream.str();
     if (seq.length() > 0)
         result.seqs.push_back(seq);
+    
+    if (result.seqs.size() < 2)
+        throw parse_exception("given FASTA alignment contains less than two sequences");
     
     return result;
 }
 
 fasta_alignment fasta_alignment::load(const char* file) {
     FILE* fin = fopen(file, "rt");
-    if (!fin) { // TODO: use IO exception
-        std::stringstream msg;
-        msg << "unable to open FASTA file: " << file;
-        throw std::runtime_error(msg.str());
-    }
+    if (!fin)
+        throw io_exception("unable to open FASTA alignment file: %s", file);
     
     fasta_alignment result = load(fin);
     

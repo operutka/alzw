@@ -28,6 +28,7 @@ THE SOFTWARE.
 
 #include "search-engine.hpp"
 #include "utils.hpp"
+#include "exception.hpp"
 
 using namespace alzw;
 
@@ -256,6 +257,9 @@ stream_searcher::~stream_searcher() {
 void stream_searcher::load_phrase(uint64_t cw) {
     const node_map& nmap = dec.get_phrases();
     node_map::const_iterator it = nmap.find(cw);
+    if (it == nmap.end())
+        throw runtime_exception("unknown codeword: 0x%016lx", (unsigned long)cw);
+    
     const node* n = it->second;
     
     while (n->parent()) {
@@ -408,25 +412,30 @@ void search_task::search(search_engine::match_handler* h, void* misc) {
     const node* wnode = dict.get_wnode();
     uint64_t cw;
     size_t plen;
+    size_t i = 0;
     
-    while (seq <= seqc) {
+    while (i < seqc) {
         if (pwidth > in.read(cw, pwidth))
-            return;
+            throw runtime_exception("unexpected EOF in ALZW stream");
         
         if (cw == dnode->id())
             rseq_offset += in.read_delta();
         else if (cw == inode->id())
             read_insert(in, h, misc);
-        else if (cw == wnode->id())
+        else if (cw == wnode->id()) {
+            if (pwidth == (sizeof(cw) << 3))
+                throw runtime_exception("codeword width overflow");
             pwidth++;
-        else {
+        } else {
             plen = process_cw(cw, h, misc);
             seq_offset  += plen;
             rseq_offset += plen;
         }
         
-        if (rseq_offset >= rseq.length())
+        if (rseq_offset >= rseq.length()) {
             new_sequence();
+            i++;
+        }
     }
 }
 
@@ -447,10 +456,14 @@ size_t search_task::skip_file_table(breader& in) {
     char buffer[4096];
     
     int seqc = in.read_int();
-    for (int i = 0; i < seqc; i++)
-        in.read_str(buffer, sizeof(buffer));
+    for (int i = 0; i < seqc; i++) {
+        if (in.read_str(buffer, sizeof(buffer)) < 0)
+            throw runtime_exception("ALZW sequence file name is too long, maximum supported length is 4095 characters");
+    }
     
-    if (seqc == 0)
+    if (seqc < 0)
+        throw runtime_exception("negative number of ALZW sequences");
+    else if (seqc == 0)
         return 1;
     
     return seqc;
@@ -462,7 +475,9 @@ void search_task::read_insert(breader& in,
     uint64_t cw   = 0;
     
     for (size_t i = 0; i < icount; i++) {
-        in.read(cw, pwidth);
+        if (pwidth > in.read(cw, pwidth))
+            throw runtime_exception("unexpected EOF in ALZW stream");
+        
         seq_offset += process_cw(cw, h, misc);
     }
 }
@@ -581,6 +596,9 @@ const representative * lm_task::get_representative(uint64_t cw) {
     const node* n = get_node(cw);
     uint64_t orig_cw = cw;
     
+    if (!n)
+        throw runtime_exception("unknown codeword: 0x%016lx", (unsigned long)cw);
+    
     while (!rmap.count(cw) && n->parent()) {
         if (cw > n->id())
             suffix_stack.push_back(n->get_base(--cw - n->id()));
@@ -653,10 +671,14 @@ search_engine::search_engine(const char* rseqf, const char* alzwf)
     char buffer[4096];
     
     int seqc = br.read_int();
-    for (int i = 0; i < seqc; i++)
-        br.read_str(buffer, sizeof(buffer));
+    for (int i = 0; i < seqc; i++) {
+        if (br.read_str(buffer, sizeof(buffer)) < 0)
+            throw runtime_exception("ALZW sequence file name is too long, maximum supported length is 4095 characters");
+    }
     
-    if (seqc == 0)
+    if (seqc < 0)
+        throw runtime_exception("negative number of ALZW sequences");
+    else if (seqc == 0)
         seqc = 1;
     
     for (int i = 0; i < seqc; i++)

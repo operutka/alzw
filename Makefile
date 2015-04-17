@@ -25,8 +25,8 @@ ALZW_SRCS=$(SRC)/alzw.cpp \
           $(SRC)/encoder.cpp \
           $(SRC)/decoder.cpp \
           $(SRC)/fasta-alignment.cpp \
-          $(SRC)/sam-alignment.cpp \
-          $(SRC)/utils.cpp
+          $(SRC)/utils.cpp \
+          $(SRC)/exception.cpp
 
 ALZWQ_SRCS=$(SRC)/alzwq.cpp \
            $(SRC)/bit-io.cpp \
@@ -34,15 +34,18 @@ ALZWQ_SRCS=$(SRC)/alzwq.cpp \
            $(SRC)/dictionary.cpp \
            $(SRC)/fautomaton.cpp \
            $(SRC)/search-engine.cpp \
-           $(SRC)/utils.cpp
+           $(SRC)/utils.cpp \
+           $(SRC)/exception.cpp
 
 S2FASTA_SRCS=$(SRC)/sam2fasta.cpp \
              $(SRC)/sam-alignment.cpp \
-             $(SRC)/utils.cpp
+             $(SRC)/utils.cpp \
+             $(SRC)/exception.cpp
 
 S2SEQ_SRCS=$(SRC)/sam2seq.cpp \
            $(SRC)/sam-alignment.cpp \
-           $(SRC)/utils.cpp
+           $(SRC)/utils.cpp \
+           $(SRC)/exception.cpp
              
 
 ALZW_OBJS=$(ALZW_SRCS:$(SRC)/%.cpp=$(OBJ)/%.o)

@@ -29,11 +29,11 @@ THE SOFTWARE.
 #include <fstream>
 #include <iostream>
 
-#include "sam-alignment.hpp"
 #include "fasta-alignment.hpp"
 #include "encoder.hpp"
 #include "decoder.hpp"
 #include "utils.hpp"
+#include "exception.hpp"
 
 using namespace alzw;
 
@@ -134,17 +134,37 @@ static size_t compress(encoder& enc, bwriter& bw, const alignment& a,
  * @param seq  sequence
  */
 /*static void save_seq(const char* file, const std::string& seq) {
-    std::ofstream fout(file);
+    char buffer[4096];
+    size_t boffset = 0;
     size_t offset = 0;
     
+    std::ofstream fout(file);
+    if (!fout)
+        throw io_exception("unable to open output file: %s", file);
+    
     for (size_t i = 0; i < seq.length(); i++) {
+        if ((boffset + 3) >= sizeof(buffer)) {
+            buffer[boffset] = 0;
+            fout << buffer;
+            if (fout.fail())
+                throw io_exception("error while writing into a file");
+            boffset = 0;
+        }
+        
         if (seq[i] == '-')
             continue;
-        fout << seq[i];
+        
+        buffer[boffset++] = seq[i];
         if ((++offset % 60) == 0)
-            fout << std::endl;
+            buffer[boffset++] = '\n';
     }
     
+    if (boffset > 0) {
+        buffer[boffset] = 0;
+        fout << buffer;
+        if (fout.fail())
+            throw io_exception("error while writing into a file");
+    }
     
     fout.flush();
     fout.close();
@@ -244,11 +264,35 @@ static void compress(int sync_period, bool async,
         fprintf(stderr, "%s\n", seq_files[i]);
         //snprintf(buffer, sizeof(buffer), "%s.fa.orig", seq_files[i]);
         fasta_alignment fa = fasta_alignment::load(seq_files[i]);
-        //save_seq(buffer, sa[1]);
+        //save_seq(buffer, fa[1]);
         total_aseq_len += compress(enc, bw, fa, smap_p);
     }
     
     print_stats(enc, total_aseq_len);
+}
+
+/**
+ * Decode a single sequence from a given ALZW stream.
+ *
+ * @param br       input
+ * @param dec      decoder
+ * @param seq_name name of the sequence
+ * @param out_file path to an output file
+ */
+static void decompress(breader& br, decoder& dec, 
+    const std::string& seq_name, const char* out_file) {
+    fprintf(stderr, "%s\n", out_file);
+    
+    std::ofstream fout(out_file);
+    if (!fout)
+        throw io_exception("unable to open output file: %s", out_file);
+    
+    fout << ">" << seq_name << std::endl;
+    
+    dec.decode(br, fout);
+    
+    fout.flush();
+    fout.close();
 }
 
 /**
@@ -272,19 +316,17 @@ static void decompress(const char* rseq_file, const char* alzw_file) {
     
     int seqc = br->read_int();
     for (int i = 0; i < seqc; i++) {
-        br->read_str(buffer, sizeof(buffer));
+        if (br->read_str(buffer, sizeof(buffer)) < 0)
+            throw runtime_exception("ALZW sequence file name is too long, maximum supported length is 4095 characters");
         fnames.push_back(buffer);
     }
     
-    if (seqc > 0) {
+    if (seqc < 0)
+        throw runtime_exception("negative number of ALZW sequences");
+    else if (seqc > 0) {
         for (int i = 0; i < seqc; i++) {
             snprintf(buffer, sizeof(buffer), "%s.fa", fnames[i].c_str());
-            fprintf(stderr, "%s\n", buffer);
-            std::ofstream fout(buffer);
-            fout << ">" << fnames[i] << std::endl;
-            dec.decode(*br, fout);
-            fout.flush();
-            fout.close();
+            decompress(*br, dec, fnames[i], buffer);
         }
     } else
         dec.decode(*br, std::cout);
@@ -355,10 +397,15 @@ int main(int argc, const char **argv) {
     
     double t = utils::time();
     
-    if (d)
-        decompress(argv[0], argv[1]);
-    else
-        compress(s, a, argv, argc);
+    try {
+        if (d)
+            decompress(argv[0], argv[1]);
+        else
+            compress(s, a, argv, argc);
+    } catch (std::exception& ex) {
+        fprintf(stderr, "ERROR: %s\n", ex.what());
+        return 2;
+    }
     
     t = utils::time() - t;
     fprintf(stderr, "elapsed time [s]: %f\n", t);

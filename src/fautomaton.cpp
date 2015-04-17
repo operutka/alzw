@@ -25,6 +25,7 @@ THE SOFTWARE.
 
 #include "fautomaton.hpp"
 #include "utils.hpp"
+#include "exception.hpp"
 
 using namespace alzw;
 
@@ -101,15 +102,17 @@ df_automaton& df_automaton::operator=(const df_automaton& other) {
 }
 
 df_automaton::state * df_automaton::get(int sid) {
-    if (sid < 0 || sid >= scount)
-        throw std::runtime_error("sid out of range");
+    // use this for debugging:
+    //if (sid < 0 || sid >= scount)
+    //    throw runtime_exception("sid out of range");
     
     return states + sid;
 }
 
 const df_automaton::state * df_automaton::get(int sid) const {
-    if (sid < 0 || sid >= scount)
-        throw std::runtime_error("sid out of range");
+    // use this for debugging:
+    //if (sid < 0 || sid >= scount)
+    //    throw runtime_exception("sid out of range");
     
     return states + sid;
 }

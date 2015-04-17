@@ -23,8 +23,6 @@ THE SOFTWARE.
 #include <unordered_map>
 #include <deque>
 #include <algorithm>
-#include <exception>
-#include <stdexcept>
 #include <sstream>
 #include <stdint.h>
 
@@ -32,6 +30,7 @@ THE SOFTWARE.
 
 #include "sam-alignment.hpp"
 #include "utils.hpp"
+#include "exception.hpp"
 
 using namespace alzw;
 
@@ -98,7 +97,7 @@ static size_t cigar2str(uint32_t* cigar, size_t csize, uint8_t* seq,
         switch (op) {
             case 0:                     // match/mismatch
                 if ((bpos + len) >= bsize)
-                    throw std::overflow_error("insufficient CIGAR buffer size");
+                    throw runtime_exception("insufficient CIGAR buffer size");
                 for (size_t j = 0; j < len; j++)
                     buffer[bpos + j] = bam_base_chr(bam1_seqi(seq, spos + j));
                 bpos += len;
@@ -107,21 +106,19 @@ static size_t cigar2str(uint32_t* cigar, size_t csize, uint8_t* seq,
             case 1: spos += len; break; // insertion skip
             case 2:                     // deletion
                 if ((bpos + len) >= bsize)
-                    throw std::overflow_error("insufficient CIGAR buffer size");
+                    throw runtime_exception("insufficient CIGAR buffer size");
                 memset(buffer + bpos, '-', len);
                 bpos += len;
                 break;
             case 3:                     // skip
                 if ((bpos + len) >= bsize)
-                    throw std::overflow_error("insufficient CIGAR buffer size");
+                    throw runtime_exception("insufficient CIGAR buffer size");
                 memset(buffer + bpos, ' ', len);
                 bpos += len;
                 break;
             case 4: spos += len; break; // soft-clipping
             default:
-                std::stringstream msg;
-                msg << "unsupported CIGAR operation: " << op;
-                throw std::runtime_error(msg.str());
+                throw runtime_exception("unsupported CIGAR operation: %u", (unsigned)op);
         }
     }
     
@@ -157,7 +154,7 @@ void add_insertions(size_t pos, int mapq, uint32_t* cigar, size_t csize,
                 break;
             case 1:
                 if (len >= sizeof(buffer))
-                    throw std::overflow_error("insufficient insertion buffer size");
+                    throw runtime_exception("insufficient insertion buffer size");
                 for (size_t j = 0; j < len; j++)
                     buffer[j] = bam_base_chr(bam1_seqi(seq, spos + j));
                 buffer[len] = 0;
@@ -169,9 +166,7 @@ void add_insertions(size_t pos, int mapq, uint32_t* cigar, size_t csize,
             case 3: pos  += len; break;
             case 4: spos += len; break;
             default:
-                std::stringstream msg;
-                msg << "unsupported CIGAR operation: " << op;
-                throw std::runtime_error(msg.str());
+                throw runtime_exception("unsupported CIGAR operation: %u", (unsigned)op);
         }
     }
 }
@@ -298,11 +293,8 @@ static std::string load_sam(samfile_t* samfile, const std::string& rseq,
 static std::string load_sam(const char* samfile, const std::string& rseq, 
     std::unordered_map<size_t, insertion>& inserts) {
     samfile_t *sf = samopen(samfile, "rb", 0);
-    if (!sf) {
-        std::stringstream msg;
-        msg << "unable to open SAM/BAM file: " << samfile;
-        throw std::runtime_error(msg.str());
-    }
+    if (!sf)
+        throw io_exception("unable to open SAM/BAM file: %s", samfile);
     
     std::string seq = load_sam(sf, rseq, inserts);
     

@@ -25,10 +25,9 @@ THE SOFTWARE.
 
 #include "decoder.hpp"
 #include "utils.hpp"
+#include "exception.hpp"
 
 using namespace alzw;
-
-// TODO: security checks for corrupted files
 
 decoder::decoder(const std::string& rs, bool hash_index)
     : rseq(rs) {
@@ -59,6 +58,9 @@ void decoder::flush_output_buffer(std::ostream* out) {
     obuffer[ob_offset] = 0;
     *out << obuffer;
     ob_offset = 0;
+    
+    if (out->fail())
+        throw io_exception("error while writing into a file");
 }
 
 size_t decoder::output_node(const node* n, uint32_t noffset, 
@@ -101,7 +103,7 @@ size_t decoder::output_match(uint64_t id, size_t roffset, std::ostream* out) {
     
     dict.new_phrase();
     
-    while (id > dict.get_id()) {
+    while (id > dict.get_id() && i < rseq.length()) {
         c = rseq[i++];
         dict.add(c);
         if (out) {
@@ -110,6 +112,9 @@ size_t decoder::output_match(uint64_t id, size_t roffset, std::ostream* out) {
                 output_char('\n', out);
         }
     }
+    
+    if (id != dict.get_id())
+        throw runtime_exception("match overflow");
     
     dict.commit_phrase();
     
@@ -131,11 +136,14 @@ size_t decoder::decode_mr(uint64_t cw,
 void decoder::decode_ins(size_t roffset, breader& in, std::ostream* out) {
     size_t count = in.read_delta();
     const node* n;
-    size_t cw;
+    uint64_t cw;
     
     for (size_t i = 0; i < count; i++) {
-        in.read(cw, width);
-        n = dict.get(cw);
+        if (width > in.read(cw, width))
+            throw runtime_exception("unexpected EOF in ALZW stream");
+        if (!(n = dict.get(cw)))
+            throw runtime_exception("unknown codeword: 0x%016lx", (unsigned long)cw);
+        
         output_node(n, cw - n->id(), roffset, out);
     }
 }
@@ -152,15 +160,17 @@ void decoder::decode(breader& in, std::ostream* out) {
     while (roffset < rseq.size()) {
         // drop the last read if it's too short
         if (width > in.read(cw, width))
-            break;
+            throw runtime_exception("unexpected EOF in ALZW stream");
         
         if (cw == inode->id())
             decode_ins(roffset, in, out);
         else if (cw == dnode->id())
             roffset += in.read_delta();
-        else if (cw == wnode->id())
+        else if (cw == wnode->id()) {
+            if (width == (sizeof(cw) << 3))
+                throw runtime_exception("codeword width overflow");
             width++;
-        else
+        } else
             roffset += decode_mr(cw, roffset, in, out);
     }
     
