@@ -340,13 +340,13 @@ int main(int argc, const char **argv) {
         "    RSEQ  reference sequence file in FASTA format (used only in case of\n"
         "          decompression)\n"
         "    ALZW  ALZW compressed file (used only in case of decompression)\n"
-        "    A#    sequence alignment in FASTA format (used only in case of\n"
+        "    A#    sequence alignment file in FASTA format (used only in case of\n"
         "          compression)\n\n"
         "OPTIONS\n\n"
         "    -d     decompression\n"
-        "    -s num synchronization period, only valid for compression [200]\n"
-        "    -a     adaptive synchronization\n"
-        "    -h     print this help\n";
+        "    -s num synchronization period [200] (valid only in case of compression)\n"
+        "    -a     adaptive synchronization (valid only in case of compression)\n"
+        "    -h     show help\n";
     
     int  i = 1;
     

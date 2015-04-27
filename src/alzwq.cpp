@@ -88,7 +88,7 @@ static int process_query(int alg, search_engine& se) {
 
 int main(int argc, const char** argv) {
     const char* usage = 
-        "USAGE: alzwq [OPTIONS] [RSEQ] [ALZW]\n\n"
+        "USAGE: alzwq [OPTIONS] RSEQ ALZW\n\n"
         "    RSEQ  reference sequence file in FASTA format\n"
         "    ALZW  ALZW compressed file\n\n"
         "OPTIONS\n\n"
@@ -97,7 +97,7 @@ int main(int argc, const char** argv) {
         "               dfa deterministic finite automaton\n"
         "               bmh Boyer-Moore-Horspool\n"
         "               s   simple search (naive algorithm)\n"
-        "    -h     print this help\n";
+        "    -h     show help\n";
     
     int  i = 1;
     

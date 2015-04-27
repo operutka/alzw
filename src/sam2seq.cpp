@@ -91,11 +91,11 @@ void convert(const char* rseq_file, const char** seq_files, int count) {
 
 int main(int argc, const char **argv) {
     const char* usage = 
-        "USAGE: sam2seq [OPTIONS] REF FILE1 [FILE2 [...]]\n\n"
-        "    REF   file containing a reference sequence in FASTA format\n"
-        "    FILE# file containing a sequence in binary SAM format\n\n"
+        "USAGE: sam2seq [OPTIONS] RSEQ FILE1 [FILE2 [...]]\n\n"
+        "    RSEQ  reference sequence file in FASTA format\n"
+        "    FILE# sequence file in binary SAM format\n\n"
         "OPTIONS\n\n"
-        "    -h    print this help\n";
+        "    -h    show help\n";
     
     int  i = 1;
     
